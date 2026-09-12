@@ -8,7 +8,7 @@ The application lists Ookla test servers, runs a selected test, and displays a b
 
 ## Requirements
 
-- OpenWrt 25.12 or a compatible OpenWrt release
+- OpenWrt 25.12 or newer; tested on OpenWrt 25.12
 - LuCI
 - `speedtest` installed at `/usr/bin/speedtest`
 - `rpcd-mod-ucode`
