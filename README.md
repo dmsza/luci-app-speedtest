@@ -30,13 +30,14 @@ git clone https://github.com/dmsza/luci-app-speedtest.git ../luci-app-speedtest
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 cp -r ../luci-app-speedtest package/luci-app-speedtest
-make menuconfig
 ```
 
-After configuring the OpenWrt build, build the package:
+Configure and build the package:
 
 ```sh
+echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
 make defconfig
+make tools/compile V=s
 make package/luci-app-speedtest/compile V=s
 find bin/packages -type f -name 'luci-app-speedtest*.apk'
 ```
