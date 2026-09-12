@@ -14,7 +14,7 @@ The application lists Ookla test servers, runs a selected test, and displays a b
 - `rpcd-mod-ucode`
 - `ucode-mod-fs`
 
-The package declares the rpcd/ucode dependencies automatically. The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is not bundled and must be installed separately according to Ookla's distribution instructions.
+The package declares the rpcd/ucode dependencies automatically. The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is not bundled and must be installed separately according to Ookla's distribution instructions. For additional discussion of the CLI's licensing considerations on OpenWrt, see [this OpenWrt forum discussion](https://forum.openwrt.org/t/ookla-speedtest-cli/66345/30).
 
 ## Building
 
