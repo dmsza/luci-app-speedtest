@@ -9,7 +9,7 @@ const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
 const HISTORY_MAX    = 200;   // capped entry count, bounds tmpfs growth
 const HISTORY_MAX_BYTES = 262144;
-const LIST_TIMEOUT   = 20;    // seconds allowed for the -L server list fetch
+const LIST_TIMEOUT   = 30;    // seconds allowed for the -L server list fetch
 const TEST_TIMEOUT   = 180;   // seconds allowed for a single test run
 
 // `timeout` is a standard busybox applet on OpenWrt, but availability is
@@ -129,10 +129,14 @@ const methods = {
 				const output = capture.output;
 				const servers = parse_server_list(output);
 
-				if (rc != 0 && !length(servers)) {
-					const reason = (rc == 124 || rc == -9)
-						? sprintf('timed out after %ds', LIST_TIMEOUT)
-						: sprintf('speedtest exited with code %d', rc);
+				if (!length(servers)) {
+					let reason;
+					if (rc == 124 || rc == -9)
+						reason = sprintf('timed out after %ds', LIST_TIMEOUT);
+					else if (rc == 0)
+						reason = 'no servers returned';
+					else
+						reason = sprintf('speedtest exited with code %d', rc);
 					return { servers: [], error: reason };
 				}
 

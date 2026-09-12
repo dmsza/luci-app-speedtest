@@ -5,8 +5,7 @@
 
 var callGetServers = rpc.declare({
     object: 'luci.speedtest',
-    method: 'get_servers',
-    expect: { servers: [] }
+    method: 'get_servers'
 });
 
 var callRunTest = rpc.declare({
@@ -51,12 +50,17 @@ return view.extend({
     },
 
     render: function(data) {
-        var servers = Array.isArray(data[0]) ? data[0] : [];
+        var serverReply = data[0] && typeof data[0] === 'object' ? data[0] : {};
+        var servers = Array.isArray(serverReply.servers) ? serverReply.servers : [];
         var history = Array.isArray(data[1]) ? data[1] : [];
 
         var selectEl = E('select', { 'class': 'cbi-input-select', 'id': 'server_select' }, [
-            E('option', { 'value': '' }, '-- Select Server --')
+            E('option', { 'value': '' }, servers.length ? '-- Select Server --' :
+                (serverReply.error || 'Error retrieving server list'))
         ]);
+
+        if (!servers.length)
+            selectEl.options[0].disabled = true;
 
         servers.forEach(function(s) {
             var label = s.name + ' | ' + s.location + ' | ' + s.id;
@@ -90,6 +94,7 @@ return view.extend({
 
         var btnGo = E('button', {
             'class': 'cbi-button cbi-button-action',
+            'disabled': !servers.length,
             'click': ui.createHandlerFn(this, function() {
                 var serverId = selectEl.value;
                 var selectedOpt = selectEl.options[selectEl.selectedIndex];
