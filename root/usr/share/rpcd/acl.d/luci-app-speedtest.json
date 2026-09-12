@@ -1,0 +1,16 @@
+{
+  "luci-app-speedtest": {
+    "description": "Grant access to speedtest RPC procedures",
+    "read": {
+      "ubus": {
+        "luci.speedtest": [ "get_servers", "get_history" ]
+      }
+    },
+    "write": {
+      "ubus": {
+        "luci.speedtest": [ "run_test" ]
+      }
+    }
+  }
+}
+

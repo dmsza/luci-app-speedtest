@@ -1,0 +1,10 @@
+{
+  "admin/network/speedtest": {
+    "title": "SpeedTest",
+    "action": {
+      "type": "view",
+      "path": "speedtest"
+    },
+    "order": 90
+  }
+}

@@ -1,0 +1,17 @@
+# 0. Copiar árvore da app para diretório de build do OpenWRT, dentro de ./package
+
+# 1. Enable the package as a module in .config
+echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
+
+# 2. Reset build system cache and sync config
+rm -rf tmp/
+make defconfig
+
+# 3. Compile the package
+# (no chmod step needed: the rpcd backend is now a ucode script loaded by
+# rpcd-mod-ucode, not an executable shell script)
+make package/luci-app-speedtest/compile V=s
+
+# 4. Locate the output APK file
+find bin/ -name "luci-app-speedtest*.apk"
+
