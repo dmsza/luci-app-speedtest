@@ -86,17 +86,22 @@ return view.extend({
             var downloadLatency = download.latency || {};
             var uploadLatency = upload.latency || {};
             var result = row.result || {};
-            var serverLabel = server.name && server.location ?
-                server.name + ' | ' + server.location : (server.name || '-');
+            var serverParts = [server.name, server.location, server.id].filter(function(value) {
+                return value !== undefined && value !== null && value !== '';
+            });
+            var serverLabel = serverParts.length ? serverParts.join(' | ') : '-';
+            var packetLoss = typeof row.packetLoss === 'number' && isFinite(row.packetLoss) ?
+                row.packetLoss.toFixed(1) + '%' : '-';
 
             return E('tr', { 'class': 'cbi-section-table-row' }, [
                 E('td', { 'class': 'td' }, row.timestamp || '-'),
                 E('td', { 'class': 'td' }, serverLabel),
+                E('td', { 'class': 'td' }, row.isp || '-'),
                 E('td', { 'class': 'td' }, formatBandwidth(download.bandwidth)),
                 E('td', { 'class': 'td' }, formatLatency(downloadLatency.iqm)),
                 E('td', { 'class': 'td' }, formatBandwidth(upload.bandwidth)),
                 E('td', { 'class': 'td' }, formatLatency(uploadLatency.iqm)),
-                E('td', { 'class': 'td' }, '-'),
+                E('td', { 'class': 'td' }, packetLoss),
                 E('td', { 'class': 'td' }, (result.url && /^https?:\/\//i.test(result.url)) ?
                     E('a', { 'href': result.url, 'target': '_blank', 'rel': 'noopener noreferrer' }, 'View Result') : '-')
             ]);
@@ -160,7 +165,8 @@ return view.extend({
                 E('thead', {}, [
                     E('tr', { 'class': 'cbi-section-table-titles' }, [
                         E('th', { 'class': 'th' }, 'Timestamp'),
-                        E('th', { 'class': 'th' }, 'Server'),
+                        E('th', { 'class': 'th' }, 'Server Name'),
+                        E('th', { 'class': 'th' }, 'ISP'),
                         E('th', { 'class': 'th' }, 'Download'),
                         E('th', { 'class': 'th' }, 'Download Latency'),
                         E('th', { 'class': 'th' }, 'Upload'),
@@ -171,7 +177,7 @@ return view.extend({
                 ]),
                 E('tbody', {}, tableRows.length > 0 ? tableRows : [
                     E('tr', { 'class': 'cbi-section-table-row' }, [
-                        E('td', { 'class': 'td', 'colspan': 8, 'style': 'text-align: center;' }, 'No test history available.')
+                        E('td', { 'class': 'td', 'colspan': 9, 'style': 'text-align: center;' }, 'No test history available.')
                     ])
                 ])
             ])
