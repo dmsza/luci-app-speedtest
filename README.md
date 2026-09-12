@@ -2,7 +2,7 @@
 
 # luci-app-speedtest
 
-LuCI frontend for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) on OpenWrt 25.12.
+LuCI frontend for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) for OpenWrt 25.12 and newer.
 
 The application lists Ookla test servers, runs a selected test, and displays a bounded history of completed tests in LuCI.
 
