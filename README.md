@@ -29,8 +29,6 @@ make package/luci-app-speedtest/compile V=s
 find bin/ -name 'luci-app-speedtest*.apk' -o -name 'luci-app-speedtest*.ipk'
 ```
 
-See [`howtobuild.txt`](howtobuild.txt) for the short build procedure.
-
 ## Installation
 
 Install the generated package on the router using the package manager:
