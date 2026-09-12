@@ -52,7 +52,17 @@ return view.extend({
     render: function(data) {
         var serverReply = data[0] && typeof data[0] === 'object' ? data[0] : {};
         var servers = Array.isArray(serverReply.servers) ? serverReply.servers : [];
-        var history = Array.isArray(data[1]) ? data[1] : [];
+        var history = Array.isArray(data[1]) ? data[1].slice().sort(function(a, b) {
+            var aTime = Date.parse(a && a.timestamp);
+            var bTime = Date.parse(b && b.timestamp);
+
+            if (isNaN(aTime))
+                return isNaN(bTime) ? 0 : 1;
+            if (isNaN(bTime))
+                return -1;
+
+            return bTime - aTime;
+        }) : [];
 
         var selectEl = E('select', { 'class': 'cbi-input-select', 'id': 'server_select' }, [
             E('option', { 'value': '' }, servers.length ? '-- Select Server --' :
