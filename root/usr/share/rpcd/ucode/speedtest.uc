@@ -179,14 +179,19 @@ function finish_test() {
 		append_debug('DEBUG phase=parse result=missing_json');
 		return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 	}
+	append_debug('DEBUG phase=parse result=json_object');
 
 	if (!valid_history_entry(result)) {
 		append_debug('DEBUG phase=parse result=invalid_schema');
 		return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 	}
+	append_debug('DEBUG phase=parse result=valid_schema');
 
+	append_debug('DEBUG phase=history result=loading');
 	const history = load_history();
+	append_debug(sprintf('DEBUG phase=history result=loaded entries=%d', length(history)));
 	push(history, result);
+	append_debug(sprintf('DEBUG phase=history result=appended entries=%d', length(history)));
 	if (!save_history(history)) {
 		append_debug('DEBUG phase=history result=save_failed');
 		return { status: 'error', error: 'could not save test history' };
@@ -396,7 +401,7 @@ const methods = {
 					unlink(TEST_STATUS);
 					unlink(TEST_STARTED);
 					unlink(TEST_PID);
-					append_debug('DEBUG phase=status result=exception');
+					append_debug(sprintf('DEBUG phase=status result=exception error=%s', e));
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
