@@ -6,7 +6,6 @@ const SPEEDTEST_BIN  = '/usr/bin/speedtest';
 const STATE_DIR      = '/var/lib/luci-app-speedtest';
 const HISTORY_FILE   = STATE_DIR + '/history.json';
 const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
-const DEBUG_FILE     = STATE_DIR + '/debug.log';
 const TEST_OUT       = STATE_DIR + '/test.out';
 const TEST_ERR       = STATE_DIR + '/test.err';
 const TEST_STATUS    = STATE_DIR + '/test.status';
@@ -138,17 +137,6 @@ function save_history(history) {
 	return true;
 }
 
-function append_debug(message) {
-	mkdir(STATE_DIR, 0700);
-	const previous = readfile(DEBUG_FILE, HISTORY_MAX_BYTES) ?? '';
-	writefile(DEBUG_FILE, previous + message + '\n');
-}
-
-function save_debug_output(output, error) {
-	mkdir(STATE_DIR, 0700);
-	writefile(DEBUG_FILE, (output || '') + (error || ''));
-}
-
 function release_lock() {
 	unlink(LOCK_PID);
 	rmdir(LOCK_DIR);
@@ -183,17 +171,12 @@ function parse_speedtest_json(output) {
 
 function finish_test() {
 	const status = readfile(TEST_STATUS, 32);
-	if (!status) {
-		append_debug('DEBUG phase=finish status=missing');
+	if (!status)
 		return { status: 'running' };
-	}
 
 	const output = readfile(TEST_OUT, HISTORY_MAX_BYTES) ?? '';
 	const error = readfile(TEST_ERR, HISTORY_MAX_BYTES) ?? '';
 	const rc = int(trim(status));
-	save_debug_output(output, error);
-	append_debug(sprintf('DEBUG phase=finish status=%d output_bytes=%d error_bytes=%d',
-		rc, length(output), length(error)));
 	unlink(TEST_OUT);
 	unlink(TEST_ERR);
 	unlink(TEST_STATUS);
@@ -201,35 +184,21 @@ function finish_test() {
 	unlink(TEST_PID);
 	release_lock();
 
-	if (rc != 0) {
-		append_debug(sprintf('DEBUG phase=finish result=cli_error rc=%d', rc));
+	if (rc != 0)
 		return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
-	}
 
 	const result = parse_speedtest_json(output);
-	if (!result) {
-		append_debug('DEBUG phase=parse result=missing_json');
+	if (!result)
 		return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
-	}
-	append_debug('DEBUG phase=parse result=json_object');
 
-	if (!valid_history_entry(result)) {
-		append_debug('DEBUG phase=parse result=invalid_schema');
+	if (!valid_history_entry(result))
 		return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
-	}
-	append_debug('DEBUG phase=parse result=valid_schema');
 
-	append_debug('DEBUG phase=history result=loading');
 	const history = load_history();
-	append_debug(sprintf('DEBUG phase=history result=loaded entries=%d', length(history)));
 	push(history, result);
-	append_debug(sprintf('DEBUG phase=history result=appended entries=%d', length(history)));
-	if (!save_history(history)) {
-		append_debug('DEBUG phase=history result=save_failed');
+	if (!save_history(history))
 		return { status: 'error', error: 'could not save test history' };
-	}
 
-	append_debug('DEBUG phase=history result=saved');
 	return { status: 'ok' };
 }
 
@@ -350,12 +319,10 @@ const methods = {
 				unlink(TEST_STATUS);
 				unlink(TEST_PID);
 				writefile(TEST_STARTED, time());
-				append_debug(sprintf('DEBUG phase=launch server_id=%s', server_id));
 				const cmd = sprintf('( %s --accept-license --accept-gdpr --format=json -s %s; echo $? >%s ) >%s 2>%s & echo $! >%s',
 					SPEEDTEST_BIN, server_id, TEST_STATUS, TEST_OUT, TEST_ERR, TEST_PID);
 				const launcher = popen(cmd, 'r');
 				if (!launcher) {
-					append_debug('DEBUG phase=launch result=popen_failed');
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
@@ -368,13 +335,11 @@ const methods = {
 				}
 				const pid = int(trim(readfile(TEST_PID) ?? ''));
 				if (!pid) {
-					append_debug('DEBUG phase=launch result=pid_missing');
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
 
 				writefile(LOCK_PID, pid);
-				append_debug(sprintf('DEBUG phase=launch result=started pid=%d', pid));
 				return { status: 'started' };
 			}
 		},
@@ -387,8 +352,6 @@ const methods = {
 				const started = int(trim(readfile(TEST_STARTED) ?? ''));
 				const pid = int(trim(readfile(LOCK_PID) ?? ''));
 				if (started && time() - started >= TEST_TIMEOUT && pid) {
-					append_debug(sprintf('DEBUG phase=watchdog result=timeout pid=%d elapsed=%d',
-						pid, time() - started));
 					system(sprintf('kill -TERM %d 2>/dev/null; kill -KILL %d 2>/dev/null', pid, pid));
 					writefile(TEST_STATUS, 124);
 				}
@@ -401,7 +364,6 @@ const methods = {
 					unlink(TEST_STATUS);
 					unlink(TEST_STARTED);
 					unlink(TEST_PID);
-					append_debug(sprintf('DEBUG phase=status result=exception error=%s', e));
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
