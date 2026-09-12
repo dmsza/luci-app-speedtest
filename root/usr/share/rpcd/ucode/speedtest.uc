@@ -183,6 +183,24 @@ function valid_history_entry(entry) {
 		type(entry.result) == 'object';
 }
 
+function parse_speedtest_json(output) {
+	for (let line in split(output, '\n')) {
+		const candidate = trim(line);
+		if (!candidate || candidate[0] != '{')
+			continue;
+
+		try {
+			const result = json(candidate);
+			if (type(result) == 'object')
+				return result;
+		} catch (e) {
+			// Continue in case the CLI emitted another non-JSON line.
+		}
+	}
+
+	return null;
+}
+
 const methods = {
 	'luci.speedtest': {
 		get_servers: {
@@ -255,10 +273,8 @@ const methods = {
 					return { status: 'error', error: err_line };
 				}
 
-				let result;
-				try {
-					result = json(output);
-				} catch (e) {
+				const result = parse_speedtest_json(output);
+				if (!result) {
 					release_lock();
 					return { status: 'error', error: 'could not parse JSON speedtest output' };
 				}
