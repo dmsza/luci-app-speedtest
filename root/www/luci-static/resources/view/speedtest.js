@@ -142,6 +142,8 @@ return view.extend({
                             location.reload();
                         } else if (res && res.error) {
                             statusEl.textContent = ' Test failed: ' + res.error;
+                        } else if (typeof res === 'number') {
+                            statusEl.textContent = ' Test failed: Error executing speedtest CLI. Try again.';
                         } else {
                             statusEl.textContent = ' Test failed: unexpected response (' + JSON.stringify(res) + ')';
                         }
@@ -158,7 +160,9 @@ return view.extend({
                     btnGo.disabled = false;
                     statusEl.textContent = res && res.error ?
                         ' Test failed: ' + res.error :
-                        ' Test failed: unexpected response (' + JSON.stringify(res) + ')';
+                        (typeof res === 'number' ?
+                            ' Test failed: Error executing speedtest CLI. Try again.' :
+                            ' Test failed: unexpected response (' + JSON.stringify(res) + ')');
                 }).catch(function(err) {
                     selectEl.disabled = false;
                     btnGo.disabled = false;

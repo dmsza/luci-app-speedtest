@@ -11,6 +11,7 @@ const TEST_OUT       = STATE_DIR + '/test.out';
 const TEST_ERR       = STATE_DIR + '/test.err';
 const TEST_STATUS    = STATE_DIR + '/test.status';
 const TEST_STARTED   = STATE_DIR + '/test.started';
+const TEST_PID       = STATE_DIR + '/test.pid';
 const SERVERS_FILE   = STATE_DIR + '/servers.json';
 const SERVERS_TMP    = STATE_DIR + '/servers.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
@@ -155,6 +156,7 @@ function finish_test() {
 	unlink(TEST_ERR);
 	unlink(TEST_STATUS);
 	unlink(TEST_STARTED);
+	unlink(TEST_PID);
 	release_lock();
 
 	if (rc != 0)
@@ -319,17 +321,23 @@ const methods = {
 				unlink(TEST_OUT);
 				unlink(TEST_ERR);
 				unlink(TEST_STATUS);
+				unlink(TEST_PID);
 				writefile(TEST_STARTED, time());
-				const cmd = sprintf('( exec %s --accept-license --accept-gdpr --format=json -s %s; echo $? >%s ) >%s 2>%s & echo $!',
-					SPEEDTEST_BIN, server_id, TEST_STATUS, TEST_OUT, TEST_ERR);
+				const cmd = sprintf('( exec %s --accept-license --accept-gdpr --format=json -s %s; echo $? >%s ) >%s 2>%s & echo $! >%s',
+					SPEEDTEST_BIN, server_id, TEST_STATUS, TEST_OUT, TEST_ERR, TEST_PID);
 				const launcher = popen(cmd, 'r');
 				if (!launcher) {
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
 
-				const pid = int(trim(launcher.read('all') ?? ''));
 				launcher.close();
+				let launch_wait = 0;
+				while (!access(TEST_PID, 'r') && launch_wait < 2) {
+					system('sleep 1');
+					launch_wait++;
+				}
+				const pid = int(trim(readfile(TEST_PID) ?? ''));
 				if (!pid) {
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
@@ -343,7 +351,7 @@ const methods = {
 		get_test_status: {
 			call: function() {
 				if (!access(LOCK_DIR, 'f'))
-					return { status: 'idle' };
+					return { status: 'idle', error: null };
 
 				const started = int(trim(readfile(TEST_STARTED) ?? ''));
 				const pid = int(trim(readfile(LOCK_PID) ?? ''));
@@ -352,7 +360,17 @@ const methods = {
 					writefile(TEST_STATUS, 124);
 				}
 
-				return finish_test();
+				try {
+					return finish_test();
+				} catch (e) {
+					unlink(TEST_OUT);
+					unlink(TEST_ERR);
+					unlink(TEST_STATUS);
+					unlink(TEST_STARTED);
+					unlink(TEST_PID);
+					release_lock();
+					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
+				}
 			}
 		},
 
