@@ -1,3 +1,5 @@
+> **NOTICE:** This project contains AI-generated code and is provided “as is,” without warranty of any kind. Review and test it before use.
+
 # luci-app-speedtest
 
 LuCI frontend for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) on OpenWrt 25.12.
