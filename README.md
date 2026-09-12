@@ -57,15 +57,6 @@ The router must have access to its configured OpenWrt package repositories so `a
 
 After installation, open **LuCI → Network → SpeedTest**.
 
-## Usage
-
-1. Open the SpeedTest page.
-2. Select a server from the server list.
-3. Press **Go!**.
-4. Wait for the test to finish. The result is added to the history table.
-
-The server list is fetched with `speedtest -L`. Each test runs with the selected server ID and the Ookla license/GDPR acceptance flags.
-
 ## License
 
 This project contains LuCI integration code for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli). The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is proprietary software and is not included in this repository; refer to Ookla's terms and license for the CLI.
