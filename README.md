@@ -57,6 +57,10 @@ The router must have access to its configured OpenWrt package repositories so `a
 
 After installation, open **LuCI → Network → SpeedTest**.
 
+Example:
+
+![SpeedTest LuCI interface](docs/speedtest-example.png)
+
 ## License
 
 The code in this project is licensed under the [GNU General Public License version 3](LICENSE).
