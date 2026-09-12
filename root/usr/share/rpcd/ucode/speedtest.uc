@@ -6,6 +6,7 @@ const SPEEDTEST_BIN  = '/usr/bin/speedtest';
 const STATE_DIR      = '/var/lib/luci-app-speedtest';
 const HISTORY_FILE   = STATE_DIR + '/history.json';
 const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
+const DEBUG_FILE     = STATE_DIR + '/debug.log';
 const SERVERS_FILE   = STATE_DIR + '/servers.json';
 const SERVERS_TMP    = STATE_DIR + '/servers.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
@@ -122,6 +123,11 @@ function save_history(history) {
 		return false;
 
 	return true;
+}
+
+function save_debug_output(output, error) {
+	mkdir(STATE_DIR, 0700);
+	writefile(DEBUG_FILE, (output || '') + (error || ''));
 }
 
 function valid_servers(servers) {
@@ -275,6 +281,7 @@ const methods = {
 				const rc = capture.rc;
 				const output = capture.output;
 				const error = capture.error;
+				save_debug_output(output, error);
 
 				if (rc != 0) {
 					release_lock();
