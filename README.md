@@ -26,14 +26,13 @@ The commands below assume that the OpenWrt tree is in `~/openwrt` and that this 
 git clone https://github.com/openwrt/openwrt.git ~/openwrt
 cd ~/openwrt
 git checkout openwrt-25.12
-git clone https://github.com/dmsza/luci-app-speedtest.git ../luci-app-speedtest
-./scripts/feeds update -a && ./scripts/feeds install -a
-cp -r ../luci-app-speedtest package/luci-app-speedtest
+git clone https://github.com/dmsza/luci-app-speedtest.git package/luci-app-speedtest
 ```
 
 Configure and build the package. Run `make menuconfig` as needed to select the desired build target:
 
 ```sh
+./scripts/feeds update -a && ./scripts/feeds install -a
 make defconfig
 make menuconfig  # Select the target device and desired build options
 echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
