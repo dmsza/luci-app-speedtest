@@ -16,10 +16,12 @@ const TEST_TIMEOUT   = 60;    // seconds allowed for a single test run
 
 // Run a command asynchronously and supervise it from ucode. This avoids
 // relying on the optional BusyBox `timeout` applet.
-function run_capture(cmd, timeout_secs, output_file) {
+function run_capture(cmd, timeout_secs, output_file, error_file) {
 	unlink(output_file);
+	unlink(error_file);
 
-	const launcher = popen(sprintf('( exec %s ) >%s 2>&1 & echo $!', cmd, output_file), 'r');
+	const launcher = popen(sprintf('( exec %s ) >%s 2>%s & echo $!',
+		cmd, output_file, error_file), 'r');
 	if (!launcher)
 		return { rc: -1, output: '' };
 
@@ -29,6 +31,7 @@ function run_capture(cmd, timeout_secs, output_file) {
 
 	if (!pid) {
 		unlink(output_file);
+		unlink(error_file);
 		return { rc: -1, output: '' };
 	}
 
@@ -45,9 +48,11 @@ function run_capture(cmd, timeout_secs, output_file) {
 	}
 
 	const output = readfile(output_file, HISTORY_MAX_BYTES) ?? '';
+	const error = readfile(error_file, HISTORY_MAX_BYTES) ?? '';
 	unlink(output_file);
+	unlink(error_file);
 
-	return { rc: timed_out ? -9 : 0, output: output };
+	return { rc: timed_out ? -9 : 0, output: output, error: error };
 }
 
 // Parses `speedtest -L` output into an array of { id, name, location }.
@@ -189,8 +194,10 @@ const methods = {
 				if (cached)
 					return { servers: cached };
 
-				const cmd = sprintf('%s -L --accept-license --accept-gdpr 2>/dev/null', SPEEDTEST_BIN);
-				const capture = run_capture(cmd, LIST_TIMEOUT, '/tmp/luci-app-speedtest-servers.out');
+				const cmd = sprintf('%s -L --accept-license --accept-gdpr', SPEEDTEST_BIN);
+				const capture = run_capture(cmd, LIST_TIMEOUT,
+					'/tmp/luci-app-speedtest-servers.out',
+					'/tmp/luci-app-speedtest-servers.err');
 				const rc = capture.rc;
 				const output = capture.output;
 				const servers = parse_server_list(output);
@@ -227,10 +234,14 @@ const methods = {
 				if (!acquire_lock())
 					return { status: 'error', error: 'A speed test is already running' };
 
-				const cmd = sprintf('%s --accept-license --accept-gdpr --format=json -s %s 2>&1', SPEEDTEST_BIN, server_id);
-				const capture = run_capture(cmd, TEST_TIMEOUT, '/tmp/luci-app-speedtest-test.out');
+				const cmd = sprintf('%s --accept-license --accept-gdpr --format=json -s %s',
+					SPEEDTEST_BIN, server_id);
+				const capture = run_capture(cmd, TEST_TIMEOUT,
+					'/tmp/luci-app-speedtest-test.out',
+					'/tmp/luci-app-speedtest-test.err');
 				const rc = capture.rc;
 				const output = capture.output;
+				const error = capture.error;
 
 				if (rc != 0) {
 					release_lock();
@@ -238,7 +249,7 @@ const methods = {
 					if (rc == 124 || rc == -9)
 						err_line = sprintf('test timed out after %ds', TEST_TIMEOUT);
 					else {
-						const lines = filter(split(output, '\n'), length);
+						const lines = filter(split(error || output, '\n'), length);
 						err_line = length(lines) ? lines[-1] : sprintf('speedtest exited with code %d', rc);
 					}
 					return { status: 'error', error: err_line };
