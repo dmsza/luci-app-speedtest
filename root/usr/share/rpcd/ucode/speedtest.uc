@@ -7,6 +7,7 @@ const STATE_DIR      = '/var/lib/luci-app-speedtest';
 const HISTORY_FILE   = STATE_DIR + '/history.json';
 const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
+const LEGACY_HISTORY_FILES = [ '/tmp/speedtest.log', '/etc/speedtest.log' ];
 const HISTORY_MAX    = 200;   // capped entry count, bounds tmpfs growth
 const HISTORY_MAX_BYTES = 65536;
 const LIST_TIMEOUT   = 20;    // seconds allowed for the -L server list fetch
@@ -109,42 +110,84 @@ function parse_run_result(output, input_srv) {
 	return { srv, dl, dl_lat, ul, ul_lat, pkt, url };
 }
 
+function parse_legacy_history(raw) {
+	const history = [];
+
+	if (!raw)
+		return history;
+
+	const lines = split(raw, '\n');
+
+	for (let i = 1; i < length(lines); i++) {
+		const fields = split(trim(lines[i]), ',');
+
+		if (length(fields) != 8)
+			continue;
+
+		const entry = {
+			timestamp: trim(fields[0]),
+			server: trim(fields[1]),
+			download: trim(fields[2]),
+			download_latency: trim(fields[3]),
+			upload: trim(fields[4]),
+			upload_latency: trim(fields[5]),
+			packet_loss: trim(fields[6]),
+			result_url: trim(fields[7])
+		};
+
+		if (valid_history_entry(entry))
+			push(history, entry);
+	}
+
+	return history;
+}
+
 // History is stored as a plain JSON array. ucode's native JSON support means
 // no CSV escaping/quoting scheme is needed at all (the previous shell
 // version's naive CSV format could be corrupted by a comma or backslash in
 // a server name; this cannot happen here).
 function load_history() {
-	if (!access(HISTORY_FILE, 'r'))
-		return [];
+	if (access(HISTORY_FILE, 'r')) {
+		const raw = readfile(HISTORY_FILE, HISTORY_MAX_BYTES);
 
-	const raw = readfile(HISTORY_FILE, HISTORY_MAX_BYTES);
-
-	if (!raw)
-		return [];
-
-	try {
-		const data = json(raw);
-		if (type(data) != 'array')
-			return [];
-
-		const history = [];
-		for (let entry in data) {
-			if (valid_history_entry(entry))
-				push(history, entry);
-			if (length(history) >= HISTORY_MAX)
-				break;
+		if (raw) {
+			try {
+				const data = json(raw);
+				if (type(data) == 'array') {
+					const history = [];
+					for (let entry in data) {
+						if (valid_history_entry(entry))
+							push(history, entry);
+						if (length(history) >= HISTORY_MAX)
+							break;
+					}
+					return history;
+				}
+			} catch (e) {
+				// Fall through and attempt to import the legacy CSV log.
+			}
 		}
-		return history;
-	} catch (e) {
-		// Corrupt or foreign file content: start fresh rather than failing
-		// every future call.
-		return [];
 	}
+
+	for (let path in LEGACY_HISTORY_FILES) {
+		if (!access(path, 'r'))
+			continue;
+
+		const legacy = parse_legacy_history(readfile(path, HISTORY_MAX_BYTES));
+		if (length(legacy)) {
+			save_history(legacy);
+			return legacy;
+		}
+	}
+
+	return [];
 }
 
 function save_history(history) {
 	if (length(history) > HISTORY_MAX)
 		history = slice(history, -HISTORY_MAX);
+
+	mkdir(STATE_DIR, 0700);
 
 	if (!writefile(HISTORY_TMP, history) || !rename(HISTORY_TMP, HISTORY_FILE))
 		return false;
