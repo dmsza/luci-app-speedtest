@@ -24,6 +24,16 @@ var callGetHistory = rpc.declare({
     expect: { history: [] }
 });
 
+function formatBandwidth(bytesPerSecond) {
+    return typeof bytesPerSecond === 'number' && isFinite(bytesPerSecond) ?
+        (bytesPerSecond * 8 / 1000000).toFixed(2) + ' Mbps' : '-';
+}
+
+function formatLatency(latency) {
+    return typeof latency === 'number' && isFinite(latency) ?
+        latency.toFixed(2) + ' ms' : '-';
+}
+
 return view.extend({
     handleSaveApply: null,
     handleSave: null,
@@ -56,16 +66,25 @@ return view.extend({
         var statusEl = E('span', { 'style': 'margin-left: 10px; font-weight: bold;' }, '');
 
         var tableRows = history.map(function(row) {
+            var server = row.server || {};
+            var download = row.download || {};
+            var upload = row.upload || {};
+            var downloadLatency = download.latency || {};
+            var uploadLatency = upload.latency || {};
+            var result = row.result || {};
+            var serverLabel = server.name && server.location ?
+                server.name + ' | ' + server.location : (server.name || '-');
+
             return E('tr', { 'class': 'cbi-section-table-row' }, [
-                E('td', { 'class': 'td' }, row.timestamp),
-                E('td', { 'class': 'td' }, row.server || '-'),
-                E('td', { 'class': 'td' }, row.download),
-                E('td', { 'class': 'td' }, row.download_latency),
-                E('td', { 'class': 'td' }, row.upload),
-                E('td', { 'class': 'td' }, row.upload_latency),
-                E('td', { 'class': 'td' }, row.packet_loss),
-                E('td', { 'class': 'td' }, (row.result_url && /^https?:\/\//i.test(row.result_url)) ?
-                    E('a', { 'href': row.result_url, 'target': '_blank', 'rel': 'noopener noreferrer' }, 'View Result') : '-')
+                E('td', { 'class': 'td' }, row.timestamp || '-'),
+                E('td', { 'class': 'td' }, serverLabel),
+                E('td', { 'class': 'td' }, formatBandwidth(download.bandwidth)),
+                E('td', { 'class': 'td' }, formatLatency(downloadLatency.iqm)),
+                E('td', { 'class': 'td' }, formatBandwidth(upload.bandwidth)),
+                E('td', { 'class': 'td' }, formatLatency(uploadLatency.iqm)),
+                E('td', { 'class': 'td' }, '-'),
+                E('td', { 'class': 'td' }, (result.url && /^https?:\/\//i.test(result.url)) ?
+                    E('a', { 'href': result.url, 'target': '_blank', 'rel': 'noopener noreferrer' }, 'View Result') : '-')
             ]);
         });
 

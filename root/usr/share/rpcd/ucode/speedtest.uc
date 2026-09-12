@@ -7,9 +7,8 @@ const STATE_DIR      = '/var/lib/luci-app-speedtest';
 const HISTORY_FILE   = STATE_DIR + '/history.json';
 const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
-const LEGACY_HISTORY_FILES = [ '/tmp/speedtest.log', '/etc/speedtest.log' ];
 const HISTORY_MAX    = 200;   // capped entry count, bounds tmpfs growth
-const HISTORY_MAX_BYTES = 65536;
+const HISTORY_MAX_BYTES = 262144;
 const LIST_TIMEOUT   = 20;    // seconds allowed for the -L server list fetch
 const TEST_TIMEOUT   = 180;   // seconds allowed for a single test run
 
@@ -66,123 +65,31 @@ function parse_server_list(output) {
 	return servers;
 }
 
-// Parses the text output of a single `speedtest -s <id>` run. Fields default
-// to "-" (packet loss to "0.0%") when a line is absent from the output,
-// exactly as the previous shell/awk implementation did.
-function parse_run_result(output, input_srv) {
-	const lines = split(output, '\n');
-	let srv = (input_srv && input_srv != '') ? input_srv : '-';
-	let dl = '-', dl_lat = '-', ul = '-', ul_lat = '-', pkt = '0.0%', url = '-';
+function load_history() {
+	if (!access(HISTORY_FILE, 'r'))
+		return [];
 
-	for (let i = 0; i < length(lines); i++) {
-		const line = lines[i];
-		let m;
-
-		if (match(line, /Server:/) && (m = match(line, /Server:[ \t]*(.+)/))) {
-			const s = replace(trim(m[1]), /[ \t]*\(id.*$/, '');
-			if (s != '')
-				srv = s;
-		}
-		else if (match(line, /Download:/) && (m = match(line, /([0-9]+\.[0-9]+)[ \t]+(Mbps|Gbps|Kbps)/))) {
-			dl = m[1] + ' ' + m[2];
-			if (i + 1 < length(lines)) {
-				const lm = match(lines[i + 1], /([0-9]+\.[0-9]+)[ \t]+ms/);
-				if (lm)
-					dl_lat = lm[1] + ' ms';
-			}
-		}
-		else if (match(line, /Upload:/) && (m = match(line, /([0-9]+\.[0-9]+)[ \t]+(Mbps|Gbps|Kbps)/))) {
-			ul = m[1] + ' ' + m[2];
-			if (i + 1 < length(lines)) {
-				const lm = match(lines[i + 1], /([0-9]+\.[0-9]+)[ \t]+ms/);
-				if (lm)
-					ul_lat = lm[1] + ' ms';
-			}
-		}
-		else if ((m = match(line, /Packet Loss:[ \t]*([0-9]+\.[0-9]+%)/))) {
-			pkt = m[1];
-		}
-		else if ((m = match(line, /Result URL:[ \t]*(\S+)/))) {
-			url = m[1];
-		}
-	}
-
-	return { srv, dl, dl_lat, ul, ul_lat, pkt, url };
-}
-
-function parse_legacy_history(raw) {
-	const history = [];
+	const raw = readfile(HISTORY_FILE, HISTORY_MAX_BYTES);
 
 	if (!raw)
+		return [];
+
+	try {
+		const data = json(raw);
+		if (type(data) != 'array')
+			return [];
+
+		const history = [];
+		for (let entry in data) {
+			if (valid_history_entry(entry))
+				push(history, entry);
+			if (length(history) >= HISTORY_MAX)
+				break;
+		}
 		return history;
-
-	const lines = split(raw, '\n');
-
-	for (let i = 1; i < length(lines); i++) {
-		const fields = split(trim(lines[i]), ',');
-
-		if (length(fields) != 8)
-			continue;
-
-		const entry = {
-			timestamp: trim(fields[0]),
-			server: trim(fields[1]),
-			download: trim(fields[2]),
-			download_latency: trim(fields[3]),
-			upload: trim(fields[4]),
-			upload_latency: trim(fields[5]),
-			packet_loss: trim(fields[6]),
-			result_url: trim(fields[7])
-		};
-
-		if (valid_history_entry(entry))
-			push(history, entry);
+	} catch (e) {
+		return [];
 	}
-
-	return history;
-}
-
-// History is stored as a plain JSON array. ucode's native JSON support means
-// no CSV escaping/quoting scheme is needed at all (the previous shell
-// version's naive CSV format could be corrupted by a comma or backslash in
-// a server name; this cannot happen here).
-function load_history() {
-	if (access(HISTORY_FILE, 'r')) {
-		const raw = readfile(HISTORY_FILE, HISTORY_MAX_BYTES);
-
-		if (raw) {
-			try {
-				const data = json(raw);
-				if (type(data) == 'array') {
-					const history = [];
-					for (let entry in data) {
-						if (valid_history_entry(entry))
-							push(history, entry);
-						if (length(history) >= HISTORY_MAX)
-							break;
-					}
-
-					if (length(history))
-						return history;
-				}
-			} catch (e) {
-				// Fall through and attempt to import the legacy CSV log.
-			}
-		}
-	}
-
-	for (let path in LEGACY_HISTORY_FILES) {
-		if (!access(path, 'r'))
-			continue;
-
-		const legacy = parse_legacy_history(readfile(path, HISTORY_MAX_BYTES));
-		if (length(legacy)) {
-			save_history(legacy);
-			return legacy;
-		}
-	}
-
-	return [];
 }
 
 function save_history(history) {
@@ -208,20 +115,12 @@ function release_lock() {
 
 function valid_history_entry(entry) {
 	return type(entry) == 'object' &&
+		entry.type == 'result' &&
 		type(entry.timestamp) == 'string' &&
-		type(entry.server) == 'string' &&
-		type(entry.download) == 'string' &&
-		type(entry.download_latency) == 'string' &&
-		type(entry.upload) == 'string' &&
-		type(entry.upload_latency) == 'string' &&
-		type(entry.packet_loss) == 'string' &&
-		type(entry.result_url) == 'string';
-}
-
-function iso_timestamp() {
-	const t = localtime();
-	return sprintf('%04d-%02d-%02d %02d:%02d:%02d',
-		t.year, t.mon, t.mday, t.hour, t.min, t.sec);
+		type(entry.download) == 'object' &&
+		type(entry.upload) == 'object' &&
+		type(entry.server) == 'object' &&
+		type(entry.result) == 'object';
 }
 
 const methods = {
@@ -252,8 +151,6 @@ const methods = {
 			args: { server_id: 'example', server_name: 'example' },
 			call: function(request) {
 				const server_id = request.args.server_id;
-				const server_name = request.args.server_name;
-
 				if (!server_id)
 					return { status: 'error', error: 'No server ID selected' };
 
@@ -266,7 +163,7 @@ const methods = {
 				if (!acquire_lock())
 					return { status: 'error', error: 'A speed test is already running' };
 
-				const cmd = sprintf('%s -s %s --accept-license --accept-gdpr 2>&1', SPEEDTEST_BIN, server_id);
+				const cmd = sprintf('%s --accept-license --accept-gdpr --format=json -s %s 2>&1', SPEEDTEST_BIN, server_id);
 				const capture = run_capture(cmd, TEST_TIMEOUT);
 				const rc = capture.rc;
 				const output = capture.output;
@@ -283,27 +180,21 @@ const methods = {
 					return { status: 'error', error: err_line };
 				}
 
-				const parsed = parse_run_result(output, server_name);
-
-				// speedtest exited 0 but nothing recognizable was found: the
-				// CLI output format likely changed. Surface this instead of
-				// silently logging a row of dashes.
-				if (parsed.dl == '-' && parsed.ul == '-') {
+				let result;
+				try {
+					result = json(output);
+				} catch (e) {
 					release_lock();
-					return { status: 'error', error: 'could not parse speedtest output' };
+					return { status: 'error', error: 'could not parse JSON speedtest output' };
+				}
+
+				if (!valid_history_entry(result)) {
+					release_lock();
+					return { status: 'error', error: 'invalid JSON speedtest result' };
 				}
 
 				const history = load_history();
-				push(history, {
-					timestamp: iso_timestamp(),
-					server: parsed.srv,
-					download: parsed.dl,
-					download_latency: parsed.dl_lat,
-					upload: parsed.ul,
-					upload_latency: parsed.ul_lat,
-					packet_loss: parsed.pkt,
-					result_url: parsed.url
-				});
+				push(history, result);
 				const saved = save_history(history);
 				release_lock();
 
