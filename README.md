@@ -32,7 +32,7 @@ git clone https://github.com/dmsza/luci-app-speedtest.git ../luci-app-speedtest
 cp -r ../luci-app-speedtest package/luci-app-speedtest
 ```
 
-Configure and build the package:
+Configure and build the package. Run `make menuconfig` as needed to select the desired build target:
 
 ```sh
 echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
