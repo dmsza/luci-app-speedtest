@@ -3,7 +3,7 @@
     "description": "Grant access to speedtest RPC procedures",
     "read": {
       "ubus": {
-        "luci.speedtest": [ "get_servers", "get_history" ]
+        "luci.speedtest": [ "get_servers", "get_history", "get_test_status" ]
       }
     },
     "write": {
@@ -13,4 +13,3 @@
     }
   }
 }
-

@@ -7,6 +7,10 @@ const STATE_DIR      = '/var/lib/luci-app-speedtest';
 const HISTORY_FILE   = STATE_DIR + '/history.json';
 const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
 const DEBUG_FILE     = STATE_DIR + '/debug.log';
+const TEST_OUT       = STATE_DIR + '/test.out';
+const TEST_ERR       = STATE_DIR + '/test.err';
+const TEST_STATUS    = STATE_DIR + '/test.status';
+const TEST_STARTED   = STATE_DIR + '/test.started';
 const SERVERS_FILE   = STATE_DIR + '/servers.json';
 const SERVERS_TMP    = STATE_DIR + '/servers.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
@@ -136,6 +140,36 @@ function save_history(history) {
 function save_debug_output(output, error) {
 	mkdir(STATE_DIR, 0700);
 	writefile(DEBUG_FILE, (output || '') + (error || ''));
+}
+
+function finish_test() {
+	const status = readfile(TEST_STATUS, 32);
+	if (!status)
+		return { status: 'running' };
+
+	const output = readfile(TEST_OUT, HISTORY_MAX_BYTES) ?? '';
+	const error = readfile(TEST_ERR, HISTORY_MAX_BYTES) ?? '';
+	const rc = int(trim(status));
+	save_debug_output(output, error);
+	unlink(TEST_OUT);
+	unlink(TEST_ERR);
+	unlink(TEST_STATUS);
+	unlink(TEST_STARTED);
+	release_lock();
+
+	if (rc != 0)
+		return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
+
+	const result = parse_speedtest_json(output);
+	if (!result || !valid_history_entry(result))
+		return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
+
+	const history = load_history();
+	push(history, result);
+	if (!save_history(history))
+		return { status: 'error', error: 'could not save test history' };
+
+	return { status: 'ok' };
 }
 
 function valid_servers(servers) {
@@ -282,42 +316,43 @@ const methods = {
 				if (!acquire_lock())
 					return { status: 'error', error: 'A speed test is already running' };
 
-				const cmd = sprintf('%s --accept-license --accept-gdpr --format=json -s %s',
-					SPEEDTEST_BIN, server_id);
-				const capture = run_capture(cmd, TEST_TIMEOUT,
-					'/tmp/luci-app-speedtest-test.out',
-					'/tmp/luci-app-speedtest-test.err',
-					'/tmp/luci-app-speedtest-test.status');
-				const rc = capture.rc;
-				const output = capture.output;
-				const error = capture.error;
-				save_debug_output(output, error);
-
-				if (rc != 0) {
+				unlink(TEST_OUT);
+				unlink(TEST_ERR);
+				unlink(TEST_STATUS);
+				writefile(TEST_STARTED, time());
+				const cmd = sprintf('( exec %s --accept-license --accept-gdpr --format=json -s %s; echo $? >%s ) >%s 2>%s & echo $!',
+					SPEEDTEST_BIN, server_id, TEST_STATUS, TEST_OUT, TEST_ERR);
+				const launcher = popen(cmd, 'r');
+				if (!launcher) {
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
 
-				const result = parse_speedtest_json(output);
-				if (!result) {
+				const pid = int(trim(launcher.read('all') ?? ''));
+				launcher.close();
+				if (!pid) {
 					release_lock();
 					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
 
-				if (!valid_history_entry(result)) {
-					release_lock();
-					return { status: 'error', error: 'invalid JSON speedtest result' };
+				writefile(LOCK_PID, pid);
+				return { status: 'started' };
+			}
+		},
+
+		get_test_status: {
+			call: function() {
+				if (!access(LOCK_DIR, 'f'))
+					return { status: 'idle' };
+
+				const started = int(trim(readfile(TEST_STARTED) ?? ''));
+				const pid = int(trim(readfile(LOCK_PID) ?? ''));
+				if (started && time() - started >= TEST_TIMEOUT && pid) {
+					system(sprintf('kill -TERM %d 2>/dev/null; kill -KILL %d 2>/dev/null', pid, pid));
+					writefile(TEST_STATUS, 124);
 				}
 
-				const history = load_history();
-				push(history, result);
-				const saved = save_history(history);
-				release_lock();
-
-				if (!saved)
-					return { status: 'error', error: 'could not save test history' };
-
-				return { status: 'ok' };
+				return finish_test();
 			}
 		},
 

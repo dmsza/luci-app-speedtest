@@ -17,6 +17,11 @@ var callRunTest = rpc.declare({
     // so a failed run always showed "Unknown error" regardless of cause.
 });
 
+var callGetTestStatus = rpc.declare({
+    object: 'luci.speedtest',
+    method: 'get_test_status'
+});
+
 var callGetHistory = rpc.declare({
     object: 'luci.speedtest',
     method: 'get_history',
@@ -123,19 +128,37 @@ return view.extend({
                 btnGo.disabled = true;
                 statusEl.textContent = ' Running SpeedTest... Please wait...';
 
+                function pollTest() {
+                    return callGetTestStatus().then(function(res) {
+                        if (res && res.status === 'running')
+                            return new Promise(function(resolve) {
+                                setTimeout(function() { resolve(pollTest()); }, 2000);
+                            });
+
+                        selectEl.disabled = false;
+                        btnGo.disabled = false;
+                        if (res && res.status === 'ok') {
+                            statusEl.textContent = ' Test finished!';
+                            location.reload();
+                        } else if (res && res.error) {
+                            statusEl.textContent = ' Test failed: ' + res.error;
+                        } else {
+                            statusEl.textContent = ' Test failed: unexpected response (' + JSON.stringify(res) + ')';
+                        }
+                    });
+                }
+
                 return callRunTest(serverId, serverName).then(function(res) {
+                    if (res && res.status === 'started') {
+                        statusEl.textContent = ' Running SpeedTest... Please wait...';
+                        return pollTest();
+                    }
+
                     selectEl.disabled = false;
                     btnGo.disabled = false;
-                    if (res && typeof res === 'object' && res.status === 'ok') {
-                        statusEl.textContent = ' Test finished!';
-                        location.reload();
-                    } else if (res && typeof res === 'object' && res.error) {
-                        statusEl.textContent = ' Test failed: ' + res.error;
-                    } else {
-                        // Unexpected reply shape (e.g. a bare ubus error code) -
-                        // still surface something rather than claiming success.
-                        statusEl.textContent = ' Test failed: unexpected response (' + JSON.stringify(res) + ')';
-                    }
+                    statusEl.textContent = res && res.error ?
+                        ' Test failed: ' + res.error :
+                        ' Test failed: unexpected response (' + JSON.stringify(res) + ')';
                 }).catch(function(err) {
                     selectEl.disabled = false;
                     btnGo.disabled = false;
