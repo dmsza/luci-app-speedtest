@@ -18,12 +18,13 @@ const TEST_TIMEOUT   = 60;    // seconds allowed for a single test run
 
 // Run a command asynchronously and supervise it from ucode. This avoids
 // relying on the optional BusyBox `timeout` applet.
-function run_capture(cmd, timeout_secs, output_file, error_file) {
+function run_capture(cmd, timeout_secs, output_file, error_file, status_file) {
 	unlink(output_file);
 	unlink(error_file);
+	unlink(status_file);
 
-	const launcher = popen(sprintf('( exec %s ) >%s 2>%s & echo $!',
-		cmd, output_file, error_file), 'r');
+	const launcher = popen(sprintf('( %s; echo $? >%s ) >%s 2>%s & echo $!',
+		cmd, status_file, output_file, error_file), 'r');
 	if (!launcher)
 		return { rc: -1, output: '' };
 
@@ -34,6 +35,7 @@ function run_capture(cmd, timeout_secs, output_file, error_file) {
 	if (!pid) {
 		unlink(output_file);
 		unlink(error_file);
+		unlink(status_file);
 		return { rc: -1, output: '' };
 	}
 
@@ -42,10 +44,10 @@ function run_capture(cmd, timeout_secs, output_file, error_file) {
 	const deadline = time() + timeout_secs;
 	let timed_out = false;
 
-	while (access('/proc/' + pid, 'f') && time() < deadline)
+	while (!access(status_file, 'r') && time() < deadline)
 		system('sleep 1');
 
-	if (access('/proc/' + pid, 'f')) {
+	if (!access(status_file, 'r')) {
 		timed_out = true;
 		system(sprintf('kill -TERM %d 2>/dev/null', pid));
 		system(sprintf('kill -KILL %d 2>/dev/null', pid));
@@ -53,11 +55,17 @@ function run_capture(cmd, timeout_secs, output_file, error_file) {
 
 	const output = readfile(output_file, HISTORY_MAX_BYTES) ?? '';
 	const error = readfile(error_file, HISTORY_MAX_BYTES) ?? '';
+	const status = readfile(status_file, 32);
 	unlink(output_file);
 	unlink(error_file);
+	unlink(status_file);
 	unlink(LOCK_PID);
 
-	return { rc: timed_out ? -9 : 0, output: output, error: error };
+	return {
+		rc: timed_out ? -9 : int(trim(status ?? '')),
+		output: output,
+		error: error
+	};
 }
 
 // Parses `speedtest -L` output into an array of { id, name, location }.
@@ -236,7 +244,8 @@ const methods = {
 				const cmd = sprintf('%s -L --accept-license --accept-gdpr', SPEEDTEST_BIN);
 				const capture = run_capture(cmd, LIST_TIMEOUT,
 					'/tmp/luci-app-speedtest-servers.out',
-					'/tmp/luci-app-speedtest-servers.err');
+					'/tmp/luci-app-speedtest-servers.err',
+					'/tmp/luci-app-speedtest-servers.status');
 				const rc = capture.rc;
 				const output = capture.output;
 				const servers = parse_server_list(output);
@@ -277,7 +286,8 @@ const methods = {
 					SPEEDTEST_BIN, server_id);
 				const capture = run_capture(cmd, TEST_TIMEOUT,
 					'/tmp/luci-app-speedtest-test.out',
-					'/tmp/luci-app-speedtest-test.err');
+					'/tmp/luci-app-speedtest-test.err',
+					'/tmp/luci-app-speedtest-test.status');
 				const rc = capture.rc;
 				const output = capture.output;
 				const error = capture.error;
