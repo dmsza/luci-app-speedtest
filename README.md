@@ -49,7 +49,7 @@ The generated APK is placed below `bin/packages/`, in the package directory for 
 Copy the generated APK to the router, then install it with `apk`. Replace the local path and router address as needed:
 
 ```sh
-scp /path/to/luci-app-speedtest*.apk root@192.168.1.1:/tmp/
+scp -O /path/to/luci-app-speedtest*.apk root@192.168.1.1:/tmp/
 ssh root@192.168.1.1
 apk add --allow-untrusted /tmp/luci-app-speedtest*.apk
 ```
