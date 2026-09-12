@@ -166,7 +166,7 @@ function valid_history_entry(entry) {
 function parse_speedtest_json(output) {
 	for (let line in split(output, '\n')) {
 		const candidate = trim(line);
-		if (!candidate || candidate[0] != '{')
+		if (!candidate || !match(candidate, /^\{/))
 			continue;
 
 		try {
