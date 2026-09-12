@@ -38,6 +38,14 @@ function formatLatency(latency) {
         latency.toFixed(2) + ' ms' : '-';
 }
 
+function formatIsp(isp) {
+    if (typeof isp !== 'string')
+        return '-';
+
+    var words = isp.trim().split(/\s+/);
+    return words.slice(0, 2).join(' ') || '-';
+}
+
 return view.extend({
     handleSaveApply: null,
     handleSave: null,
@@ -101,7 +109,7 @@ return view.extend({
             return E('tr', { 'class': 'cbi-section-table-row' }, [
                 E('td', { 'class': 'td' }, row.timestamp || '-'),
                 E('td', { 'class': 'td' }, serverLabel),
-                E('td', { 'class': 'td' }, row.isp || '-'),
+                E('td', { 'class': 'td' }, formatIsp(row.isp)),
                 E('td', { 'class': 'td' }, formatBandwidth(download.bandwidth)),
                 E('td', { 'class': 'td' }, formatLatency(downloadLatency.iqm)),
                 E('td', { 'class': 'td' }, formatBandwidth(upload.bandwidth)),
