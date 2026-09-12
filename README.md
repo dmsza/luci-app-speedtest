@@ -35,7 +35,7 @@ cp -r ../luci-app-speedtest package/luci-app-speedtest
 Configure and build the package. Run `make menuconfig` as needed to select the desired build target:
 
 ```sh
-echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
+echo "CONFIG_PACKAGE_luci-app-speedtest=m" > .config
 make menuconfig  # Select the target device and desired build options
 make defconfig
 make tools/compile V=s
