@@ -154,6 +154,33 @@ function release_lock() {
 	rmdir(LOCK_DIR);
 }
 
+function valid_history_entry(entry) {
+	return type(entry) == 'object' &&
+		type(entry.timestamp) == 'string' &&
+		type(entry.download) == 'object' &&
+		type(entry.upload) == 'object' &&
+		type(entry.server) == 'object' &&
+		type(entry.result) == 'object';
+}
+
+function parse_speedtest_json(output) {
+	for (let line in split(output, '\n')) {
+		const candidate = trim(line);
+		if (!candidate || candidate[0] != '{')
+			continue;
+
+		try {
+			const result = json(candidate);
+			if (type(result) == 'object')
+				return result;
+		} catch (e) {
+			// Continue in case the CLI emitted another non-JSON line.
+		}
+	}
+
+	return null;
+}
+
 function finish_test() {
 	const status = readfile(TEST_STATUS, 32);
 	if (!status) {
@@ -264,33 +291,6 @@ function acquire_lock() {
 	// version that did not record the worker PID.
 	rmdir(LOCK_DIR);
 	return mkdir(LOCK_DIR, 0700);
-}
-
-function valid_history_entry(entry) {
-	return type(entry) == 'object' &&
-		type(entry.timestamp) == 'string' &&
-		type(entry.download) == 'object' &&
-		type(entry.upload) == 'object' &&
-		type(entry.server) == 'object' &&
-		type(entry.result) == 'object';
-}
-
-function parse_speedtest_json(output) {
-	for (let line in split(output, '\n')) {
-		const candidate = trim(line);
-		if (!candidate || candidate[0] != '{')
-			continue;
-
-		try {
-			const result = json(candidate);
-			if (type(result) == 'object')
-				return result;
-		} catch (e) {
-			// Continue in case the CLI emitted another non-JSON line.
-		}
-	}
-
-	return null;
 }
 
 const methods = {
