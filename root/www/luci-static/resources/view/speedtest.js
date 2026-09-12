@@ -94,7 +94,6 @@ return view.extend({
 
         var btnGo = E('button', {
             'class': 'cbi-button cbi-button-action',
-            'disabled': !servers.length,
             'click': ui.createHandlerFn(this, function() {
                 var serverId = selectEl.value;
                 var selectedOpt = selectEl.options[selectEl.selectedIndex];
@@ -129,6 +128,9 @@ return view.extend({
                 });
             })
         }, 'Go!');
+        // Set the DOM property explicitly. Passing a false boolean attribute
+        // through E() may still leave the HTML disabled attribute present.
+        btnGo.disabled = servers.length === 0;
 
         return E('div', { 'class': 'cbi-map' }, [
             E('h2', {}, 'SpeedTest'),
