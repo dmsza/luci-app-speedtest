@@ -34,28 +34,22 @@ function run_capture(cmd, timeout_secs) {
 }
 
 // Parses `speedtest -L` output into an array of { id, name, location }.
-// Mirrors the layout Ookla's CLI prints: a "===" separator line, then one
-// row per server with the columns separated by runs of 2+ spaces/tabs.
+// The CLI has used different headers and separators across releases, so rows
+// are recognized by their numeric ID rather than a particular header line.
 function parse_server_list(output) {
 	const servers = [];
-	let in_table = false;
 
 	for (let line in split(output, '\n')) {
-		if (match(line, /^===/)) {
-			in_table = true;
-			continue;
-		}
-
-		if (!in_table)
-			continue;
-
 		const t = trim(line);
 
 		if (!match(t, /^[0-9]/))
 			continue;
 
-		const idm = match(t, /^([0-9]+)/);
-		const rest = replace(t, /^[0-9]+[ \t]+/, '');
+		const idm = match(t, /^([0-9]+)[) \t]+(.+)/);
+		if (!idm)
+			continue;
+
+		const rest = trim(idm[2]);
 		const parts = split(rest, /[ \t]{2,}/);
 
 		if (length(parts) >= 2)
