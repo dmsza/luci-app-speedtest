@@ -62,4 +62,4 @@ After installation, open **LuCI → Network → SpeedTest**.
 
 The code in this project is licensed under the [GNU General Public License version 3](LICENSE).
 
-This project contains LuCI integration code for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli). The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is proprietary software and is not included in this repository; refer to Ookla's terms and license for the CLI. For additional discussion of the CLI's licensing considerations on OpenWrt, see [this OpenWrt forum discussion](https://forum.openwrt.org/t/ookla-speedtest-cli/66345/30).
+This project contains LuCI integration code for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli). The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is proprietary software and is not included in this repository; refer to Ookla's terms and license for the CLI. For additional discussion of the Ookla Speedtest CLI's licensing considerations on OpenWrt, see [this OpenWrt forum discussion](https://forum.openwrt.org/t/ookla-speedtest-cli/66345/30).
