@@ -12,7 +12,7 @@ The application lists Ookla test servers, runs a selected test, and displays a b
 - `rpcd-mod-ucode`
 - `ucode-mod-fs`
 
-The package declares the rpcd/ucode dependencies automatically. The Ookla CLI is not bundled and must be installed separately according to Ookla's distribution instructions.
+The package declares the rpcd/ucode dependencies automatically. The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is not bundled and must be installed separately according to Ookla's distribution instructions.
 
 ## Building
 
@@ -68,4 +68,4 @@ The RPC backend requires authenticated LuCI/rpcd access. Do not expose the LuCI 
 
 ## License
 
-This project contains LuCI integration code for the Ookla Speedtest CLI. The Ookla Speedtest CLI is proprietary software and is not included in this repository; refer to Ookla's terms and license for the CLI.
+This project contains LuCI integration code for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli). The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is proprietary software and is not included in this repository; refer to Ookla's terms and license for the CLI.
