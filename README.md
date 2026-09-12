@@ -18,7 +18,7 @@ The package declares the rpcd/ucode dependencies automatically. The [Ookla Speed
 
 ## Building
 
-It is assumed that you already have a correctly configured OpenWrt build system for OpenWrt 25.12. For setup instructions and build prerequisites, see the [official OpenWrt build system installation guide](https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem).
+It is assumed that you already have a correctly configured OpenWrt build system for OpenWrt. For setup instructions and build prerequisites, see the [official OpenWrt build system installation guide](https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem).
 
 The commands below assume that the OpenWrt tree is in `~/openwrt` and that this repository is cloned alongside it:
 
