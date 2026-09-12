@@ -66,18 +66,6 @@ After installation, open **LuCI → Network → SpeedTest**.
 
 The server list is fetched with `speedtest -L`. Each test runs with the selected server ID and the Ookla license/GDPR acceptance flags.
 
-## Storage and safety
-
-- History is stored in `/var/lib/luci-app-speedtest/history.json`.
-- The state directory is created with mode `0700` and owned by `root`.
-- History writes use a temporary file followed by an atomic rename.
-- History is limited to 200 validated entries and reads are capped at 64 KiB.
-- A lock prevents concurrent speed tests on the router.
-- Tests are bounded by a 180-second timeout when the BusyBox `timeout` applet is available.
-- Result links are rendered only for `http://` and `https://` URLs and use `noopener noreferrer`.
-
-The RPC backend requires authenticated LuCI/rpcd access. Do not expose the LuCI administration interface to untrusted networks.
-
 ## License
 
 This project contains LuCI integration code for the [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli). The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is proprietary software and is not included in this repository; refer to Ookla's terms and license for the CLI.
