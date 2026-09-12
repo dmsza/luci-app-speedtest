@@ -27,8 +27,7 @@ git clone https://github.com/openwrt/openwrt.git ~/openwrt
 cd ~/openwrt
 git checkout openwrt-25.12
 git clone https://github.com/dmsza/luci-app-speedtest.git ../luci-app-speedtest
-./scripts/feeds update -a
-./scripts/feeds install -a
+./scripts/feeds update -a && ./scripts/feeds install -a
 cp -r ../luci-app-speedtest package/luci-app-speedtest
 ```
 
