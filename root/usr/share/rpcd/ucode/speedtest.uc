@@ -323,7 +323,7 @@ const methods = {
 				unlink(TEST_STATUS);
 				unlink(TEST_PID);
 				writefile(TEST_STARTED, time());
-				const cmd = sprintf('( exec %s --accept-license --accept-gdpr --format=json -s %s; echo $? >%s ) >%s 2>%s & echo $! >%s',
+				const cmd = sprintf('( %s --accept-license --accept-gdpr --format=json -s %s; echo $? >%s ) >%s 2>%s & echo $! >%s',
 					SPEEDTEST_BIN, server_id, TEST_STATUS, TEST_OUT, TEST_ERR, TEST_PID);
 				const launcher = popen(cmd, 'r');
 				if (!launcher) {
