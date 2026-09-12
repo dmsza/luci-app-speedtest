@@ -9,6 +9,7 @@ const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
 const SERVERS_FILE   = STATE_DIR + '/servers.json';
 const SERVERS_TMP    = STATE_DIR + '/servers.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
+const LOCK_PID       = LOCK_DIR + '/pid';
 const HISTORY_MAX    = 200;   // capped entry count, bounds tmpfs growth
 const HISTORY_MAX_BYTES = 262144;
 const LIST_TIMEOUT   = 30;    // seconds allowed for the -L server list fetch
@@ -35,6 +36,8 @@ function run_capture(cmd, timeout_secs, output_file, error_file) {
 		return { rc: -1, output: '' };
 	}
 
+	writefile(LOCK_PID, pid);
+
 	const deadline = time() + timeout_secs;
 	let timed_out = false;
 
@@ -51,6 +54,7 @@ function run_capture(cmd, timeout_secs, output_file, error_file) {
 	const error = readfile(error_file, HISTORY_MAX_BYTES) ?? '';
 	unlink(output_file);
 	unlink(error_file);
+	unlink(LOCK_PID);
 
 	return { rc: timed_out ? -9 : 0, output: output, error: error };
 }
@@ -167,10 +171,21 @@ function save_cached_servers(servers) {
 
 function acquire_lock() {
 	mkdir(STATE_DIR, 0700);
+	if (mkdir(LOCK_DIR, 0700))
+		return true;
+
+	const pid = int(trim(readfile(LOCK_PID) ?? ''));
+	if (pid && access('/proc/' + pid, 'f'))
+		return false;
+
+	// Recover from a stale lock left by an interrupted request or an older
+	// version that did not record the worker PID.
+	rmdir(LOCK_DIR);
 	return mkdir(LOCK_DIR, 0700);
 }
 
 function release_lock() {
+	unlink(LOCK_PID);
 	rmdir(LOCK_DIR);
 }
 
