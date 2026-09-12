@@ -81,7 +81,7 @@ function load_history() {
 
 		const history = [];
 		for (let entry in data) {
-			if (valid_history_entry(entry))
+			if (type(entry) == 'object')
 				push(history, entry);
 			if (length(history) >= HISTORY_MAX)
 				break;
@@ -115,7 +115,6 @@ function release_lock() {
 
 function valid_history_entry(entry) {
 	return type(entry) == 'object' &&
-		entry.type == 'result' &&
 		type(entry.timestamp) == 'string' &&
 		type(entry.download) == 'object' &&
 		type(entry.upload) == 'object' &&
