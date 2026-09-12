@@ -1,6 +1,6 @@
 'use strict';
 
-import { access, mkdir, popen, readfile, rename, rmdir, writefile } from 'fs';
+import { access, mkdir, popen, readfile, rename, rmdir, unlink, writefile } from 'fs';
 
 const SPEEDTEST_BIN  = '/usr/bin/speedtest';
 const STATE_DIR      = '/var/lib/luci-app-speedtest';
@@ -12,27 +12,42 @@ const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
 const HISTORY_MAX    = 200;   // capped entry count, bounds tmpfs growth
 const HISTORY_MAX_BYTES = 262144;
 const LIST_TIMEOUT   = 30;    // seconds allowed for the -L server list fetch
-const TEST_TIMEOUT   = 180;   // seconds allowed for a single test run
+const TEST_TIMEOUT   = 60;    // seconds allowed for a single test run
 
-// `timeout` is a standard busybox applet on OpenWrt, but availability is
-// checked rather than assumed so the script degrades gracefully (runs
-// without a hard timeout) on a system that lacks it.
-const HAVE_TIMEOUT = (system('command -v timeout >/dev/null 2>&1') == 0);
+// Run a command asynchronously and supervise it from ucode. This avoids
+// relying on the optional BusyBox `timeout` applet.
+function run_capture(cmd, timeout_secs, output_file) {
+	unlink(output_file);
 
-// Runs a shell command, optionally wrapped in `timeout <n>`, and returns
-// { rc, output }. rc is the process exit code (or a negative signal number,
-// or -1 if the process could not even be started).
-function run_capture(cmd, timeout_secs) {
-	const full = HAVE_TIMEOUT ? sprintf('timeout %d %s', timeout_secs, cmd) : cmd;
-	const proc = popen(full, 'r');
-
-	if (!proc)
+	const launcher = popen(sprintf('( exec %s ) >%s 2>&1 & echo $!', cmd, output_file), 'r');
+	if (!launcher)
 		return { rc: -1, output: '' };
 
-	const output = proc.read('all') ?? '';
-	const rc = proc.close();
+	const pid_text = trim(launcher.read('all') ?? '');
+	launcher.close();
+	const pid = int(pid_text);
 
-	return { rc: rc, output: output };
+	if (!pid) {
+		unlink(output_file);
+		return { rc: -1, output: '' };
+	}
+
+	const deadline = time() + timeout_secs;
+	let timed_out = false;
+
+	while (access('/proc/' + pid, 'f') && time() < deadline)
+		system('sleep 1');
+
+	if (access('/proc/' + pid, 'f')) {
+		timed_out = true;
+		system(sprintf('kill -TERM %d 2>/dev/null', pid));
+		system(sprintf('kill -KILL %d 2>/dev/null', pid));
+	}
+
+	const output = readfile(output_file, HISTORY_MAX_BYTES) ?? '';
+	unlink(output_file);
+
+	return { rc: timed_out ? -9 : 0, output: output };
 }
 
 // Parses `speedtest -L` output into an array of { id, name, location }.
@@ -175,7 +190,7 @@ const methods = {
 					return { servers: cached };
 
 				const cmd = sprintf('%s -L --accept-license --accept-gdpr 2>/dev/null', SPEEDTEST_BIN);
-				const capture = run_capture(cmd, LIST_TIMEOUT);
+				const capture = run_capture(cmd, LIST_TIMEOUT, '/tmp/luci-app-speedtest-servers.out');
 				const rc = capture.rc;
 				const output = capture.output;
 				const servers = parse_server_list(output);
@@ -213,7 +228,7 @@ const methods = {
 					return { status: 'error', error: 'A speed test is already running' };
 
 				const cmd = sprintf('%s --accept-license --accept-gdpr --format=json -s %s 2>&1', SPEEDTEST_BIN, server_id);
-				const capture = run_capture(cmd, TEST_TIMEOUT);
+				const capture = run_capture(cmd, TEST_TIMEOUT, '/tmp/luci-app-speedtest-test.out');
 				const rc = capture.rc;
 				const output = capture.output;
 
