@@ -161,7 +161,9 @@ function load_history() {
 						if (length(history) >= HISTORY_MAX)
 							break;
 					}
-					return history;
+
+					if (length(history))
+						return history;
 				}
 			} catch (e) {
 				// Fall through and attempt to import the legacy CSV log.
