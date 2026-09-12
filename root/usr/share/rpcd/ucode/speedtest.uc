@@ -6,6 +6,8 @@ const SPEEDTEST_BIN  = '/usr/bin/speedtest';
 const STATE_DIR      = '/var/lib/luci-app-speedtest';
 const HISTORY_FILE   = STATE_DIR + '/history.json';
 const HISTORY_TMP    = STATE_DIR + '/history.json.tmp';
+const SERVERS_FILE   = STATE_DIR + '/servers.json';
+const SERVERS_TMP    = STATE_DIR + '/servers.json.tmp';
 const LOCK_DIR       = '/var/run/luci-app-speedtest.lock';
 const HISTORY_MAX    = 200;   // capped entry count, bounds tmpfs growth
 const HISTORY_MAX_BYTES = 262144;
@@ -98,6 +100,51 @@ function save_history(history) {
 	return true;
 }
 
+function valid_servers(servers) {
+	if (type(servers) != 'array' || !length(servers))
+		return false;
+
+	for (let server in servers) {
+		if (type(server) != 'object' ||
+			type(server.id) != 'string' ||
+			type(server.name) != 'string' ||
+			type(server.location) != 'string')
+			return false;
+	}
+
+	return true;
+}
+
+function load_cached_servers() {
+	if (!access(SERVERS_FILE, 'r'))
+		return null;
+
+	const raw = readfile(SERVERS_FILE, HISTORY_MAX_BYTES);
+	if (!raw)
+		return null;
+
+	try {
+		const cache = json(raw);
+		if (type(cache) != 'object' ||
+			type(cache.timestamp) != 'int' ||
+			(time() - cache.timestamp) >= 86400 ||
+			!valid_servers(cache.servers))
+			return null;
+
+		return cache.servers;
+	} catch (e) {
+		return null;
+	}
+}
+
+function save_cached_servers(servers) {
+	mkdir(STATE_DIR, 0700);
+	return !!writefile(SERVERS_TMP, {
+		timestamp: time(),
+		servers: servers
+	}) && !!rename(SERVERS_TMP, SERVERS_FILE);
+}
+
 function acquire_lock() {
 	mkdir(STATE_DIR, 0700);
 	return mkdir(LOCK_DIR, 0700);
@@ -123,6 +170,10 @@ const methods = {
 				if (!access(SPEEDTEST_BIN, 'x'))
 					return { servers: [], error: 'speedtest binary not found' };
 
+				const cached = load_cached_servers();
+				if (cached)
+					return { servers: cached };
+
 				const cmd = sprintf('%s -L --accept-license --accept-gdpr 2>/dev/null', SPEEDTEST_BIN);
 				const capture = run_capture(cmd, LIST_TIMEOUT);
 				const rc = capture.rc;
@@ -140,6 +191,7 @@ const methods = {
 					return { servers: [], error: reason };
 				}
 
+				save_cached_servers(servers);
 				return { servers };
 			}
 		},
