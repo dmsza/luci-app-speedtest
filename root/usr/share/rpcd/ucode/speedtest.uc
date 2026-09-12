@@ -149,6 +149,11 @@ function save_debug_output(output, error) {
 	writefile(DEBUG_FILE, (output || '') + (error || ''));
 }
 
+function release_lock() {
+	unlink(LOCK_PID);
+	rmdir(LOCK_DIR);
+}
+
 function finish_test() {
 	const status = readfile(TEST_STATUS, 32);
 	if (!status) {
@@ -259,11 +264,6 @@ function acquire_lock() {
 	// version that did not record the worker PID.
 	rmdir(LOCK_DIR);
 	return mkdir(LOCK_DIR, 0700);
-}
-
-function release_lock() {
-	unlink(LOCK_PID);
-	rmdir(LOCK_DIR);
 }
 
 function valid_history_entry(entry) {
