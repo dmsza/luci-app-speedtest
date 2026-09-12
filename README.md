@@ -18,24 +18,40 @@ The package declares the rpcd/ucode dependencies automatically. The [Ookla Speed
 
 ## Building
 
-Copy the package directory into the OpenWrt build tree, for example:
+Build the package from an OpenWrt 25.12 source tree. The commands below assume that the OpenWrt tree is in `~/openwrt` and that this repository is cloned alongside it:
 
 ```sh
-cp -r luci-app-speedtest package/
-echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
-rm -rf tmp/
+git clone https://github.com/openwrt/openwrt.git ~/openwrt
+cd ~/openwrt
+git checkout openwrt-25.12
+git clone https://github.com/dmsza/luci-app-speedtest.git ../luci-app-speedtest
+./scripts/feeds update -a
+./scripts/feeds install -a
+cp -r ../luci-app-speedtest package/luci-app-speedtest
+make menuconfig
+```
+
+In `menuconfig`, select **LuCI → Applications → luci-app-speedtest** as a module (`M`), save, and exit. Then build the package:
+
+```sh
 make defconfig
 make package/luci-app-speedtest/compile V=s
-find bin/ -name 'luci-app-speedtest*.apk'
+find bin/packages -type f -name 'luci-app-speedtest*.apk'
 ```
+
+The generated APK is placed below `bin/packages/`, in the package directory for the selected target architecture. Record the path printed by `find` for the installation step.
 
 ## Installation
 
-Install the generated APK on the router using:
+Copy the generated APK to the router, then install it with `apk`. Replace the local path and router address as needed:
 
 ```sh
-apk add --allow-untrusted luci-app-speedtest*.apk
+scp /path/to/luci-app-speedtest*.apk root@192.168.1.1:/tmp/
+ssh root@192.168.1.1
+apk add --allow-untrusted /tmp/luci-app-speedtest*.apk
 ```
+
+The router must have access to its configured OpenWrt package repositories so `apk` can resolve the package's dependencies. The [Ookla Speedtest CLI](https://www.speedtest.net/apps/cli) is not included in this package; install it separately at `/usr/bin/speedtest` before using the LuCI application.
 
 After installation, open **LuCI → Network → SpeedTest**.
 
