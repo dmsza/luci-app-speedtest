@@ -263,20 +263,13 @@ const methods = {
 
 				if (rc != 0) {
 					release_lock();
-					let err_line;
-					if (rc == 124 || rc == -9)
-						err_line = sprintf('test timed out after %ds', TEST_TIMEOUT);
-					else {
-						const lines = filter(split(error || output, '\n'), length);
-						err_line = length(lines) ? lines[-1] : sprintf('speedtest exited with code %d', rc);
-					}
-					return { status: 'error', error: err_line };
+					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
 
 				const result = parse_speedtest_json(output);
 				if (!result) {
 					release_lock();
-					return { status: 'error', error: 'could not parse JSON speedtest output' };
+					return { status: 'error', error: 'Error executing speedtest CLI. Try again.' };
 				}
 
 				if (!valid_history_entry(result)) {
