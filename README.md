@@ -26,18 +26,12 @@ echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
 rm -rf tmp/
 make defconfig
 make package/luci-app-speedtest/compile V=s
-find bin/ -name 'luci-app-speedtest*.apk' -o -name 'luci-app-speedtest*.ipk'
+find bin/ -name 'luci-app-speedtest*.apk'
 ```
 
 ## Installation
 
-Install the generated package on the router using the package manager:
-
-```sh
-opkg install luci-app-speedtest*.ipk
-```
-
-For APK-based OpenWrt images, use:
+Install the generated APK on the router using:
 
 ```sh
 apk add --allow-untrusted luci-app-speedtest*.apk
