@@ -33,7 +33,7 @@ cp -r ../luci-app-speedtest package/luci-app-speedtest
 make menuconfig
 ```
 
-In `menuconfig`, select **LuCI → Applications → luci-app-speedtest** as a module (`M`), save, and exit. Then build the package:
+After configuring the OpenWrt build, build the package:
 
 ```sh
 make defconfig
