@@ -38,8 +38,8 @@ Configure and build the package. Run `make menuconfig` as needed to select the d
 echo "CONFIG_PACKAGE_luci-app-speedtest=m" > .config
 make defconfig
 make menuconfig  # Select the target device and desired build options
-make tools/compile V=s
-make package/luci-app-speedtest/compile V=s
+make tools/compile
+make package/luci-app-speedtest/compile
 find bin/packages -type f -name 'luci-app-speedtest*.apk'
 ```
 
