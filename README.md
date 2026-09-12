@@ -1,4 +1,4 @@
-> **NOTICE:** This project contains AI-generated code and is provided “as is,” without warranty of any kind. Review and test it before use.
+> **NOTICE:** This project contains AI-generated code and documentation and is provided “as is,” without warranty of any kind. Review and test it before use.
 
 # luci-app-speedtest
 
