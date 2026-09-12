@@ -36,6 +36,7 @@ Configure and build the package. Run `make menuconfig` as needed to select the d
 
 ```sh
 echo "CONFIG_PACKAGE_luci-app-speedtest=m" >> .config
+make menuconfig  # Select the target device and desired build options
 make defconfig
 make tools/compile V=s
 make package/luci-app-speedtest/compile V=s
